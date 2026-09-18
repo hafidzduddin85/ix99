@@ -1,0 +1,147 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — IX99{% endblock %}
+
+{% block content %}
+<div x-data="dashboard()" x-init="init()">
+
+  <!-- Summary Cards -->
+  <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-6">
+    <template x-for="item in summaryList" :key="item.label">
+      <div
+        class="rounded-xl p-4 border cursor-pointer transition-all"
+        :class="[item.bg, activeDirection === item.key ? 'ring-2 ring-sky-500' : '']"
+        @click="toggleDirection(item.key)"
+      >
+        <div class="text-xs font-medium mb-1" :class="item.text" x-text="item.label"></div>
+        <div class="text-2xl font-bold" :class="item.text" x-text="summary[item.key] ?? 0"></div>
+      </div>
+    </template>
+  </div>
+
+  <!-- Filter Bar -->
+  <div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4 mb-4">
+    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+
+      <input
+        x-model="filters.search"
+        @input="applyFilters()"
+        type="text"
+        placeholder="Cari ticker..."
+        class="input col-span-2 sm:col-span-1"
+      />
+
+      <select x-model="filters.sector" @change="applyFilters()" class="input">
+        <option value="">Semua Sektor</option>
+        <template x-for="s in sectors" :key="s">
+          <option :value="s" x-text="s"></option>
+        </template>
+      </select>
+
+      <input
+        x-model.number="filters.minScore"
+        @input="applyFilters()"
+        type="number"
+        placeholder="Min Score"
+        min="0" max="100"
+        class="input"
+      />
+
+      <input
+        x-model.number="filters.minAdx"
+        @input="applyFilters()"
+        type="number"
+        placeholder="Min ADX"
+        min="0"
+        class="input"
+      />
+
+      <input
+        x-model.number="filters.minVolRatio"
+        @input="applyFilters()"
+        type="number"
+        placeholder="Min Vol Ratio"
+        step="0.1"
+        class="input"
+      />
+
+      <div class="flex items-center gap-2">
+        <label class="flex items-center gap-2 text-sm cursor-pointer">
+          <input type="checkbox" x-model="filters.entryOnly" @change="applyFilters()" class="rounded" />
+          Entry Signal
+        </label>
+        <label class="flex items-center gap-2 text-sm cursor-pointer">
+          <input type="checkbox" x-model="filters.watchlistOnly" @change="applyFilters()" class="rounded" />
+          Watchlist
+        </label>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Table -->
+  <div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-x-auto">
+    <table class="w-full text-sm">
+      <thead>
+        <tr class="border-b border-gray-200 dark:border-gray-800 text-gray-500 dark:text-gray-400">
+          <th class="th">Ticker</th>
+          <th class="th hidden sm:table-cell">Sektor</th>
+          <th class="th">Harga</th>
+          <th class="th">Trend</th>
+          <th class="th">Score</th>
+          <th class="th hidden md:table-cell">ADX</th>
+          <th class="th hidden md:table-cell">RSI</th>
+          <th class="th hidden lg:table-cell">Vol Ratio</th>
+          <th class="th hidden lg:table-cell">Struktur</th>
+          <th class="th">Entry</th>
+        </tr>
+      </thead>
+      <tbody>
+        <template x-if="loading">
+          <tr><td colspan="10" class="text-center py-12 text-gray-400">Memuat data...</td></tr>
+        </template>
+        <template x-if="!loading && filtered.length === 0">
+          <tr><td colspan="10" class="text-center py-12 text-gray-400">Tidak ada data</td></tr>
+        </template>
+        <template x-for="s in filtered" :key="s.ticker">
+          <tr
+            class="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer transition-colors"
+            @click="window.location.href = '/stock/' + s.ticker"
+          >
+            <td class="td font-semibold text-sky-600 dark:text-sky-400" x-text="s.ticker"></td>
+            <td class="td hidden sm:table-cell text-gray-500 text-xs" x-text="s.sector ?? '-'"></td>
+            <td class="td font-mono" x-text="fmt(s.close)"></td>
+            <td class="td">
+              <span class="badge" :class="trendClass(s.trend_direction)" x-text="trendLabel(s.trend_direction)"></span>
+            </td>
+            <td class="td font-semibold" x-text="s.trend_score ?? '-'"></td>
+            <td class="td hidden md:table-cell" x-text="fmtDec(s.adx14)"></td>
+            <td class="td hidden md:table-cell" x-text="fmtDec(s.rsi14)"></td>
+            <td class="td hidden lg:table-cell" x-text="fmtDec(s.volume_ratio)"></td>
+            <td class="td hidden lg:table-cell text-xs">
+              <span x-text="s.higher_high ? 'HH' : ''" class="text-green-600 dark:text-green-400 mr-1"></span>
+              <span x-text="s.higher_low ? 'HL' : ''" class="text-green-600 dark:text-green-400 mr-1"></span>
+              <span x-text="s.lower_high ? 'LH' : ''" class="text-red-500 mr-1"></span>
+              <span x-text="s.lower_low ? 'LL' : ''" class="text-red-500"></span>
+            </td>
+            <td class="td">
+              <span x-show="s.entry_signal" class="text-green-500 font-bold">✓</span>
+              <span x-show="!s.entry_signal" class="text-gray-300">—</span>
+            </td>
+          </tr>
+        </template>
+      </tbody>
+    </table>
+    <div class="px-4 py-3 text-xs text-gray-400" x-text="`${filtered.length} saham ditampilkan`"></div>
+  </div>
+
+</div>
+
+<style>
+  .input { @apply w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500; }
+  .th { @apply text-left px-4 py-3 font-medium text-xs uppercase tracking-wide; }
+  .td { @apply px-4 py-3; }
+  .badge { @apply inline-block px-2 py-0.5 rounded-full text-xs font-medium; }
+</style>
+
+<script src="/static/js/dashboard.js"></script>
+{% endblock %}

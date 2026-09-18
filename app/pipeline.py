@@ -1,7 +1,7 @@
 import logging
 from datetime import date, datetime
 from app.db import supabase
-from app.services.ingestion_service import ingest_stocks, ingest_ticker
+from app.services.ingestion_service import ingest_ticker
 from app.services.indicator_service import run_indicator_calculation
 from app.services.trend_service import run_trend_calculation
 
@@ -16,15 +16,7 @@ def run_daily_update(trade_date: str | None = None) -> dict:
     started_at = datetime.utcnow()
     log.info(f"Daily update started — trade_date={trade_date}")
 
-    # Step 1: sync stocks master
-    try:
-        stocks_result = ingest_stocks()
-        log.info(f"Stocks synced: {stocks_result}")
-    except Exception as e:
-        log.error(f"ingest_stocks failed: {e}")
-        stocks_result = {"error": str(e)}
-
-    # Step 2: fetch active tickers
+    # Step 1: fetch active tickers dari stocks table (tidak sync dari API)
     res = supabase.table("stocks").select("ticker").eq("is_active", True).execute()
     tickers = [r["ticker"] for r in res.data]
     log.info(f"Found {len(tickers)} active stocks")
@@ -71,7 +63,6 @@ def run_daily_update(trade_date: str | None = None) -> dict:
         "started_at": started_at.isoformat(),
         "finished_at": finished_at.isoformat(),
         "duration_seconds": round(duration, 1),
-        "stocks_sync": stocks_result,
         "total": len(tickers),
         "success": len(success),
         "failed": len(failed),

@@ -156,35 +156,3 @@ def get_broker_opening(stock_id: int) -> list[dict]:
         })
 
     return result
-
-
-    """
-    Posisi terbaru per broker dari broker_positioning_daily.
-    Ambil baris terbaru per broker_code berdasarkan trade_date.
-    """
-    res = supabase.table("stocks").select("ticker").eq("id", stock_id).single().execute()
-    if not res.data:
-        return []
-    ticker = res.data["ticker"]
-
-    res = (
-        supabase.table("broker_positioning_daily")
-        .select("broker_code,trade_date,buy_volume,buy_value,buy_avg,sell_volume,sell_value,sell_avg,net_volume,net_value")
-        .eq("ticker", ticker)
-        .order("trade_date", desc=True)
-        .limit(500)
-        .execute()
-    )
-    if not res.data:
-        return []
-
-    seen = set()
-    result = []
-    for row in res.data:
-        code = row["broker_code"]
-        if code not in seen:
-            seen.add(code)
-            result.append(row)
-
-    result.sort(key=lambda x: abs(x.get("net_volume") or 0), reverse=True)
-    return result

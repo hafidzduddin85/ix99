@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, Query
 from app.db import supabase
-from app.services.broker_service import get_broker_summary, get_broker_position, get_broker_snapshot, get_broker_opening
+from app.services.broker_service import get_broker_summary, get_broker_snapshot, get_broker_opening
 
 router = APIRouter(prefix="/broker", tags=["broker"])
 
@@ -36,7 +36,6 @@ def broker_flow(ticker: str, days: int = Query(default=30, le=90)):
         raise HTTPException(status_code=404, detail=f"Ticker {ticker} not found")
 
     summary = get_broker_summary(stock_id, days)
-    position = get_broker_position(stock_id)
     opening = get_broker_opening(stock_id)
 
     net_buying = [b for b in summary if b["activity"] == "NET BUYING"][:10]
@@ -45,6 +44,6 @@ def broker_flow(ticker: str, days: int = Query(default=30, le=90)):
     return {
         "top_net_buying": net_buying,
         "top_net_selling": net_selling,
-        "positions": position[:20],
+        "positions": [],
         "opening": opening,
     }

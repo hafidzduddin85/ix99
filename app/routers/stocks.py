@@ -1,7 +1,15 @@
 from fastapi import APIRouter, HTTPException, Query
+from pydantic import BaseModel
 from app.db import supabase
 
 router = APIRouter(prefix="/stocks", tags=["stocks"])
+
+
+class StockIn(BaseModel):
+    ticker: str
+    company_name: str | None = None
+    sector: str | None = None
+    subsector: str | None = None
 
 
 @router.get("")
@@ -53,3 +61,38 @@ def get_stock_history(ticker: str, limit: int = Query(default=60, le=500)):
     if not res.data:
         raise HTTPException(status_code=404, detail=f"Ticker {ticker} not found")
     return res.data
+
+
+@router.post("")
+def add_stock(body: StockIn):
+    """Tambah saham baru atau reaktifkan yang sudah ada."""
+    ticker = body.ticker.strip().upper()
+    if not ticker:
+        raise HTTPException(status_code=400, detail="Ticker tidak boleh kosong")
+
+    row = {
+        "ticker": ticker,
+        "is_active": True,
+    }
+    if body.company_name:
+        row["company_name"] = body.company_name
+    if body.sector:
+        row["sector"] = body.sector
+    if body.subsector:
+        row["subsector"] = body.subsector
+
+    supabase.table("stocks").upsert(row, on_conflict="ticker").execute()
+    res = supabase.table("stocks").select("*").eq("ticker", ticker).single().execute()
+    return res.data
+
+
+@router.delete("/{ticker}")
+def deactivate_stock(ticker: str):
+    """Set is_active = false. Data historis tidak dihapus."""
+    ticker = ticker.upper()
+    res = supabase.table("stocks").select("id").eq("ticker", ticker).single().execute()
+    if not res.data:
+        raise HTTPException(status_code=404, detail=f"Ticker {ticker} tidak ditemukan")
+
+    supabase.table("stocks").update({"is_active": False}).eq("ticker", ticker).execute()
+    return {"ticker": ticker, "is_active": False}

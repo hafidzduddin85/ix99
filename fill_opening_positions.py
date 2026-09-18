@@ -28,7 +28,7 @@ logging.basicConfig(
 log = logging.getLogger(__name__)
 
 START_DATE = "2025-01-01"
-END_DATE = "2026-09-01"
+END_DATE = "2026-09-17"
 
 
 def get_active_tickers() -> list[str]:

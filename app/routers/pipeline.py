@@ -21,10 +21,6 @@ def trigger_pipeline(x_api_key: str | None = Header(default=None)):
 
 
 @router.post("/fill-opening")
-def trigger_fill_opening(
-    x_api_key: str | None = Header(default=None),
-    tickers: list[str] = Query(default=None),
-):
-    """Isi broker_position_opening sekali. Opsional filter ticker."""
+def trigger_fill_opening(x_api_key: str | None = Header(default=None)):
     _verify(x_api_key)
-    return run_fill_opening_positions(tickers=tickers)
+    return run_fill_opening_positions()

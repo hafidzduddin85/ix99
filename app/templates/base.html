@@ -23,8 +23,42 @@
   <nav class="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 sticky top-0 z-50">
     <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
       <a href="/" class="font-bold text-lg tracking-tight text-sky-500">IX99</a>
-      <div class="flex items-center gap-4">
+      <div class="flex items-center gap-3">
         <a href="/" class="text-sm text-gray-600 dark:text-gray-400 hover:text-sky-500 transition-colors">Dashboard</a>
+
+        <!-- Pipeline Controls -->
+        <div x-data="pipelineControls()" class="flex items-center gap-2">
+
+          <!-- Run Daily Update -->
+          <button
+            @click="runPipeline()"
+            :disabled="loading"
+            class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-sky-500 hover:bg-sky-600 disabled:opacity-50 disabled:cursor-not-allowed text-white transition-colors"
+          >
+            <span x-show="!loading">▶ Update Harian</span>
+            <span x-show="loading">⏳ Running...</span>
+          </button>
+
+          <!-- Fill Opening Positions -->
+          <button
+            @click="runFillOpening()"
+            :disabled="loading"
+            class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-violet-500 hover:bg-violet-600 disabled:opacity-50 disabled:cursor-not-allowed text-white transition-colors"
+          >
+            <span x-show="!loading">📂 Fill Opening</span>
+            <span x-show="loading">⏳ Running...</span>
+          </button>
+
+          <!-- Status Toast -->
+          <div
+            x-show="toast"
+            x-transition
+            x-text="toast"
+            class="text-xs px-3 py-1.5 rounded-lg"
+            :class="toastOk ? 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300' : 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300'"
+          ></div>
+        </div>
+
         <button
           @click="dark = !dark; localStorage.setItem('dark', dark)"
           class="p-2 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
@@ -33,6 +67,39 @@
           <span x-show="dark">☀️</span>
         </button>
       </div>
+
+      <script>
+        function pipelineControls() {
+          return {
+            loading: false,
+            toast: '',
+            toastOk: true,
+            async _call(url) {
+              this.loading = true
+              this.toast = ''
+              try {
+                const res = await fetch(url, { method: 'POST' })
+                const data = await res.json()
+                if (res.ok) {
+                  this.toastOk = true
+                  this.toast = `✓ Selesai — success: ${data.success ?? data.upserted ?? '?'}`
+                } else {
+                  this.toastOk = false
+                  this.toast = `✗ Error: ${data.detail ?? 'Unknown'}`
+                }
+              } catch (e) {
+                this.toastOk = false
+                this.toast = `✗ ${e.message}`
+              } finally {
+                this.loading = false
+                setTimeout(() => this.toast = '', 5000)
+              }
+            },
+            runPipeline() { this._call('/api/pipeline/run') },
+            runFillOpening() { this._call('/api/pipeline/fill-opening') },
+          }
+        }
+      </script>
     </div>
   </nav>
 

@@ -8,6 +8,87 @@ from app.services.trend_service import run_trend_calculation
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger(__name__)
 
+OPENING_START = "2025-01-01"
+OPENING_END = "2026-09-01"
+
+
+def _get_active_tickers() -> list[str]:
+    res = supabase.table("stocks").select("ticker").eq("is_active", True).execute()
+    return [r["ticker"] for r in res.data]
+
+
+def run_fill_opening_positions(tickers: list[str] | None = None) -> dict:
+    """Isi broker_position_opening dari broker-summary range. Jalankan sekali."""
+    import time
+    from app.services.arjum_client import get_broker_summary
+
+    if tickers is None:
+        tickers = _get_active_tickers()
+
+    log.info(f"fill_opening_positions: {len(tickers)} tickers | {OPENING_START} → {OPENING_END}")
+    success, failed = [], []
+
+    for ticker in tickers:
+        try:
+            res = supabase.table("stocks").select("id").eq("ticker", ticker).single().execute()
+            if not res.data:
+                continue
+            stock_id = res.data["id"]
+
+            data = get_broker_summary(ticker, start_date=OPENING_START, end_date=OPENING_END)
+            brokers = data.get("brokers", [])
+
+            rows = []
+            for b in brokers:
+                broker_code = b.get("broker_code", "").strip()
+                if not broker_code:
+                    continue
+                buy_val = float(b.get("bval") or 0)
+                buy_vol = int(b.get("bvol") or 0)
+                sell_val = float(b.get("sval") or 0)
+                sell_vol = int(b.get("svol") or 0)
+                if buy_vol == 0 and sell_vol == 0:
+                    continue
+                net_vol = buy_vol - sell_vol
+                net_val = buy_val - sell_val
+                buy_avg = round(buy_val / buy_vol, 2) if buy_vol > 0 else None
+                sell_avg = round(sell_val / sell_vol, 2) if sell_vol > 0 else None
+                avg_price = buy_avg if net_vol >= 0 else sell_avg
+                rows.append({
+                    "stock_id": stock_id,
+                    "broker_code": broker_code,
+                    "start_date": OPENING_START,
+                    "opening_lot": net_vol // 100,
+                    "opening_value": round(net_val, 2),
+                    "opening_average_price": avg_price,
+                    "source": f"arjum_broker_summary_{OPENING_START}_{OPENING_END}",
+                    "is_estimated": True,
+                })
+
+            if rows:
+                for i in range(0, len(rows), 500):
+                    supabase.table("broker_position_opening").upsert(
+                        rows[i:i+500], on_conflict="stock_id,broker_code,start_date"
+                    ).execute()
+
+            log.info(f"[OK] {ticker}: {len(rows)} brokers")
+            success.append(ticker)
+
+        except Exception as e:
+            log.error(f"[FAIL] {ticker}: {e}")
+            failed.append({"ticker": ticker, "error": str(e)})
+
+        time.sleep(0.4)
+
+    return {
+        "start_date": OPENING_START,
+        "end_date": OPENING_END,
+        "total": len(tickers),
+        "success": len(success),
+        "failed": len(failed),
+        "failed_tickers": failed,
+    }
+
 
 def run_daily_update(trade_date: str | None = None) -> dict:
     if trade_date is None:

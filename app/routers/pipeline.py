@@ -2,7 +2,6 @@ import os
 import time
 from fastapi import APIRouter, HTTPException, Header
 from app.pipeline import run_daily_update
-from app.db import supabase
 
 router = APIRouter(prefix="/pipeline", tags=["pipeline"])
 
@@ -22,8 +21,3 @@ def trigger_pipeline(x_api_key: str | None = Header(default=None)):
     return run_daily_update()
 
 
-@router.post("/fill-opening")
-def trigger_fill_opening(x_api_key: str | None = Header(default=None)):
-    _verify(x_api_key)
-    from app.services.opening_service import run_fill_opening
-    return run_fill_opening()

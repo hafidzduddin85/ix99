@@ -304,17 +304,18 @@
           </div>
         </div>
 
-        <!-- Estimated Positions -->
+        <!-- Posisi Terbaru per Broker -->
         <div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4">
-          <div class="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-4">Estimasi Posisi Broker</div>
+          <div class="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-4">Posisi Terbaru per Broker</div>
           <div class="overflow-x-auto">
             <table class="w-full text-xs">
               <thead>
                 <tr class="border-b border-gray-200 dark:border-gray-800 text-gray-400">
                   <th class="text-left py-2 pr-4">Broker</th>
-                  <th class="text-right py-2 pr-4">Est. Lot</th>
-                  <th class="text-right py-2 pr-4">Avg Price</th>
-                  <th class="text-right py-2">Tgl Update</th>
+                  <th class="text-right py-2 pr-4">Net Vol</th>
+                  <th class="text-right py-2 pr-4">Buy Avg</th>
+                  <th class="text-right py-2 pr-4">Sell Avg</th>
+                  <th class="text-right py-2">Tgl</th>
                 </tr>
               </thead>
               <tbody>
@@ -322,19 +323,110 @@
                   <tr class="border-b border-gray-50 dark:border-gray-800">
                     <td class="py-2 pr-4 font-semibold" x-text="p.broker_code"></td>
                     <td class="py-2 pr-4 text-right font-mono"
-                      :class="(p.closing_estimated_lot ?? 0) >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-500'"
-                      x-text="fmt(p.closing_estimated_lot)"></td>
-                    <td class="py-2 pr-4 text-right font-mono" x-text="fmt(p.estimated_average_price)"></td>
+                      :class="(p.net_volume ?? 0) >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-500'"
+                      x-text="fmt(p.net_volume)"></td>
+                    <td class="py-2 pr-4 text-right font-mono" x-text="fmt(p.buy_avg)"></td>
+                    <td class="py-2 pr-4 text-right font-mono" x-text="fmt(p.sell_avg)"></td>
                     <td class="py-2 text-right text-gray-400" x-text="p.trade_date ?? '-'"></td>
                   </tr>
                 </template>
                 <template x-if="!(broker.positions?.length)">
-                  <tr><td colspan="4" class="text-center py-6 text-gray-400">Tidak ada data posisi</td></tr>
+                  <tr><td colspan="5" class="text-center py-6 text-gray-400">Tidak ada data posisi</td></tr>
                 </template>
               </tbody>
             </table>
           </div>
-          <div class="text-xs text-gray-400 mt-3">* Posisi broker adalah estimasi berdasarkan data transaksi dan dapat memiliki keterbatasan akurasi.</div>
+          <div class="text-xs text-gray-400 mt-3">* Menampilkan data terbaru per broker dari histori harian.</div>
+        </div>
+
+        <!-- Akumulasi Sejak Awal Periode -->
+        <div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4">
+          <div class="flex items-center justify-between mb-4">
+            <div class="text-sm font-semibold text-gray-600 dark:text-gray-400">Akumulasi Sejak Awal Periode</div>
+            <template x-if="broker.opening?.length">
+              <span class="text-xs text-gray-400" x-text="'Sejak ' + (broker.opening[0]?.start_date ?? '-')"></span>
+            </template>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-xs">
+              <thead>
+                <tr class="border-b border-gray-200 dark:border-gray-800 text-gray-400">
+                  <th class="text-left py-2 pr-4">Broker</th>
+                  <th class="text-right py-2 pr-4">Net Lot</th>
+                  <th class="text-right py-2 pr-4">Avg Price</th>
+                  <th class="text-right py-2 pr-4">Konsentrasi</th>
+                  <th class="text-right py-2">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                <template x-for="o in (broker.opening ?? [])" :key="o.broker_code">
+                  <tr class="border-b border-gray-50 dark:border-gray-800">
+                    <td class="py-2 pr-4 font-semibold" x-text="o.broker_code"></td>
+                    <td class="py-2 pr-4 text-right font-mono"
+                      :class="(o.opening_lot ?? 0) >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-500'"
+                      x-text="fmt(o.opening_lot)"></td>
+                    <td class="py-2 pr-4 text-right font-mono" x-text="fmt(o.opening_average_price)"></td>
+                    <td class="py-2 pr-4 text-right" x-text="fmtDec(o.concentration_pct) + '%'"></td>
+                    <td class="py-2 text-right">
+                      <span
+                        :class="o.side === 'NET BUYING' ? 'text-green-600 dark:text-green-400' : o.side === 'NET SELLING' ? 'text-red-500' : 'text-gray-400'"
+                        x-text="o.side">
+                      </span>
+                    </td>
+                  </tr>
+                </template>
+                <template x-if="!(broker.opening?.length)">
+                  <tr><td colspan="5" class="text-center py-6 text-gray-400">Tidak ada data akumulasi</td></tr>
+                </template>
+              </tbody>
+            </table>
+          </div>
+          <div class="text-xs text-gray-400 mt-3">* Net position broker sejak awal periode. Estimasi berdasarkan data transaksi.</div>
+        </div>
+
+        <!-- Akumulasi Sejak Awal Periode -->
+        <div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4">
+          <div class="flex items-center justify-between mb-4">
+            <div class="text-sm font-semibold text-gray-600 dark:text-gray-400">Akumulasi Sejak Awal Periode</div>
+            <template x-if="broker.opening?.length">
+              <span class="text-xs text-gray-400" x-text="'Sejak ' + broker.opening[0]?.start_date"></span>
+            </template>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-xs">
+              <thead>
+                <tr class="border-b border-gray-200 dark:border-gray-800 text-gray-400">
+                  <th class="text-left py-2 pr-4">Broker</th>
+                  <th class="text-right py-2 pr-4">Net Lot</th>
+                  <th class="text-right py-2 pr-4">Avg Price</th>
+                  <th class="text-right py-2 pr-4">Konsentrasi</th>
+                  <th class="text-right py-2">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                <template x-for="o in (broker.opening ?? [])" :key="o.broker_code">
+                  <tr class="border-b border-gray-50 dark:border-gray-800">
+                    <td class="py-2 pr-4 font-semibold" x-text="o.broker_code"></td>
+                    <td class="py-2 pr-4 text-right font-mono"
+                      :class="(o.opening_lot ?? 0) >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-500'"
+                      x-text="fmt(o.opening_lot)"></td>
+                    <td class="py-2 pr-4 text-right font-mono" x-text="fmt(o.opening_average_price)"></td>
+                    <td class="py-2 pr-4 text-right" x-text="fmtDec(o.concentration_pct) + '%'"></td>
+                    <td class="py-2 text-right">
+                      <span
+                        :class="o.side === 'NET BUYING' ? 'text-green-600 dark:text-green-400' : o.side === 'NET SELLING' ? 'text-red-500' : 'text-gray-400'"
+                        x-text="o.side">
+                      </span>
+                    </td>
+                  </tr>
+                </template>
+                <template x-if="!(broker.opening?.length)">
+                  <tr><td colspan="5" class="text-center py-6 text-gray-400">Tidak ada data akumulasi</td></tr>
+                </template>
+              </tbody>
+            </table>
+          </div>
+          <div class="text-xs text-gray-400 mt-3">* Data akumulasi net position broker sejak awal periode. Estimasi berdasarkan data transaksi.</div>
         </div>
 
       </div>

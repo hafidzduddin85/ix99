@@ -39,6 +39,46 @@
             <span x-show="loading">⏳ Running...</span>
           </button>
 
+          <!-- Fill Opening -->
+          <button
+            @click="runFillOpening()"
+            :disabled="loading"
+            class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-violet-500 hover:bg-violet-600 disabled:opacity-50 disabled:cursor-not-allowed text-white transition-colors"
+          >
+            <span x-show="!loading">📂 Fill Opening</span>
+            <span x-show="loading">⏳ Running...</span>
+          </button>
+
+          <!-- Fill Broker Daily -->
+          <button
+            @click="runFillBrokerDaily()"
+            :disabled="loading"
+            class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-amber-500 hover:bg-amber-600 disabled:opacity-50 disabled:cursor-not-allowed text-white transition-colors"
+          >
+            <span x-show="!loading">📊 Fill Broker Daily</span>
+            <span x-show="loading">⏳ Running...</span>
+          </button>
+
+          <!-- Fill Opening -->
+          <button
+            @click="runFillOpening()"
+            :disabled="loading"
+            class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-violet-500 hover:bg-violet-600 disabled:opacity-50 disabled:cursor-not-allowed text-white transition-colors"
+          >
+            <span x-show="!loading">📂 Fill Opening</span>
+            <span x-show="loading">⏳ Running...</span>
+          </button>
+
+          <!-- Fill Broker Daily -->
+          <button
+            @click="runFillBrokerDaily()"
+            :disabled="loading"
+            class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-amber-500 hover:bg-amber-600 disabled:opacity-50 disabled:cursor-not-allowed text-white transition-colors"
+          >
+            <span x-show="!loading">📊 Fill Broker Daily</span>
+            <span x-show="loading">⏳ Running...</span>
+          </button>
+
           <!-- Status Toast -->
           <div
             x-show="toast"
@@ -86,6 +126,8 @@
               }
             },
             runPipeline() { this._call('/api/pipeline/run') },
+            runFillOpening() { this._call('/api/pipeline/fill-opening') },
+            runFillBrokerDaily() { this._call('/api/pipeline/fill-broker-daily') },
           }
         }
       </script>

@@ -97,60 +97,107 @@ def ingest_ohlcv(ticker: str) -> dict:
 
 
 # ---------------------------------------------------------------------------
-# Broker Daily Transaction
+# Broker — helpers
 # ---------------------------------------------------------------------------
 
-def ingest_broker_transactions(ticker: str, trade_date: str) -> dict:
+def _parse_broker_rows(ticker: str, stock_id: int, trade_date: str, brokers: list) -> tuple[list, list]:
     """
-    Ingest broker summary untuk satu hari ke broker_daily_transaction.
-    Upsert berdasarkan (stock_id, trade_date, broker_code).
+    Parse raw broker list dari API menjadi dua set rows:
+    - snapshot_rows  → broker_daily_transaction (pakai stock_id, buy_lot/sell_lot)
+    - historical_rows → broker_positioning_daily (pakai ticker, buy_volume/sell_volume)
     """
-    stock_id = _get_stock_id(ticker)
-    if not stock_id:
-        return {"error": f"Ticker {ticker} not found in stocks table"}
+    snapshot_rows = []
+    historical_rows = []
 
-    data = get_broker_summary(ticker, start_date=trade_date, end_date=trade_date)
-    brokers = data.get("brokers", [])
-    if not brokers:
-        return {"ticker": ticker, "trade_date": trade_date, "rows_processed": 0}
-
-    rows = []
     for b in brokers:
         broker_code = b.get("broker_code", "").strip()
         if not broker_code:
             continue
 
-        buy_val = b.get("bval") or 0
-        buy_vol = b.get("bvol") or 0
-        sell_val = b.get("sval") or 0
-        sell_vol = b.get("svol") or 0
+        buy_val = float(b.get("bval") or 0)
+        buy_vol = int(b.get("bvol") or 0)
+        sell_val = float(b.get("sval") or 0)
+        sell_vol = int(b.get("svol") or 0)
 
         buy_avg = round(buy_val / buy_vol, 2) if buy_vol > 0 else None
         sell_avg = round(sell_val / sell_vol, 2) if sell_vol > 0 else None
+        net_vol = buy_vol - sell_vol
+        net_val = buy_val - sell_val
 
-        # convert volume (shares) → lot (1 lot = 100 shares)
-        buy_lot = buy_vol // 100
-        sell_lot = sell_vol // 100
-
-        rows.append({
+        snapshot_rows.append({
             "stock_id": stock_id,
             "trade_date": trade_date,
             "broker_code": broker_code,
-            "buy_lot": buy_lot,
+            "buy_lot": buy_vol // 100,
             "buy_value": buy_val,
             "buy_avg": buy_avg,
-            "sell_lot": sell_lot,
+            "sell_lot": sell_vol // 100,
             "sell_value": sell_val,
             "sell_avg": sell_avg,
         })
 
-    if rows:
-        supabase.table("broker_daily_transaction").upsert(
-            rows, on_conflict="stock_id,trade_date,broker_code"
+        historical_rows.append({
+            "trade_date": trade_date,
+            "ticker": ticker,
+            "broker_code": broker_code,
+            "buy_volume": buy_vol,
+            "buy_value": buy_val,
+            "buy_avg": buy_avg,
+            "sell_volume": sell_vol,
+            "sell_value": sell_val,
+            "sell_avg": sell_avg,
+            "net_volume": net_vol,
+            "net_value": net_val,
+        })
+
+    return snapshot_rows, historical_rows
+
+
+# ---------------------------------------------------------------------------
+# Broker Daily Transaction (snapshot) + Broker Positioning Daily (historical)
+# ---------------------------------------------------------------------------
+
+def ingest_broker_transactions(ticker: str, trade_date: str) -> dict:
+    """
+    Ingest broker summary dari Arjum API:
+    - broker_daily_transaction: DELETE snapshot lama, INSERT terbaru.
+      DELETE hanya dilakukan setelah data API berhasil diambil dan divalidasi.
+    - broker_positioning_daily: UPSERT historical, tidak pernah dihapus.
+    """
+    stock_id = _get_stock_id(ticker)
+    if not stock_id:
+        return {"error": f"Ticker {ticker} not found in stocks table"}
+
+    # Ambil data dari API dulu — jangan DELETE sebelum data valid
+    try:
+        data = get_broker_summary(ticker, start_date=trade_date, end_date=trade_date)
+    except Exception as e:
+        log.error(f"ingest_broker_transactions {ticker}: API error — {e}")
+        return {"error": f"API error: {e}", "ticker": ticker, "trade_date": trade_date, "rows_processed": 0}
+
+    brokers = data.get("brokers", [])
+    if not brokers:
+        log.warning(f"ingest_broker_transactions {ticker} {trade_date}: empty response, snapshot retained")
+        return {"ticker": ticker, "trade_date": trade_date, "rows_processed": 0}
+
+    snapshot_rows, historical_rows = _parse_broker_rows(ticker, stock_id, trade_date, brokers)
+
+    if not snapshot_rows:
+        return {"ticker": ticker, "trade_date": trade_date, "rows_processed": 0}
+
+    # Data valid — aman untuk replace snapshot
+    supabase.table("broker_daily_transaction").delete().eq("stock_id", stock_id).execute()
+    supabase.table("broker_daily_transaction").insert(snapshot_rows).execute()
+
+    # UPSERT historical — tidak pernah dihapus
+    for i in range(0, len(historical_rows), 500):
+        supabase.table("broker_positioning_daily").upsert(
+            historical_rows[i:i+500],
+            on_conflict="trade_date,ticker,broker_code"
         ).execute()
 
-    log.info(f"ingest_broker_transactions {ticker} {trade_date}: {len(rows)} rows")
-    return {"ticker": ticker, "trade_date": trade_date, "rows_processed": len(rows)}
+    log.info(f"ingest_broker_transactions {ticker} {trade_date}: snapshot={len(snapshot_rows)} historical={len(historical_rows)}")
+    return {"ticker": ticker, "trade_date": trade_date, "rows_processed": len(snapshot_rows)}
 
 
 # ---------------------------------------------------------------------------

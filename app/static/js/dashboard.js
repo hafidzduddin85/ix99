@@ -6,6 +6,9 @@ function dashboard() {
     sectors: [],
     loading: true,
     activeDirection: null,
+    selectedTicker: null,
+    panel: null,
+    panelLoading: false,
 
     filters: {
       search: '',
@@ -34,7 +37,6 @@ function dashboard() {
       try {
         const params = new URLSearchParams({ active_only: true })
         if (this.filters.watchlistOnly) params.set('watchlist_only', true)
-
         const res = await fetch(`/api/dashboard?${params}`)
         const json = await res.json()
         this.stocks = json.stocks ?? []
@@ -48,36 +50,48 @@ function dashboard() {
 
     applyFilters() {
       let data = [...this.stocks]
-
-      if (this.activeDirection) {
-        data = data.filter(s => s.trend_direction === this.activeDirection)
-      }
+      if (this.activeDirection) data = data.filter(s => s.trend_direction === this.activeDirection)
       if (this.filters.search) {
         const q = this.filters.search.toUpperCase()
         data = data.filter(s => s.ticker?.includes(q) || s.company_name?.toUpperCase().includes(q))
       }
-      if (this.filters.sector) {
-        data = data.filter(s => s.sector === this.filters.sector)
-      }
-      if (this.filters.minScore !== '') {
-        data = data.filter(s => (s.trend_score ?? 0) >= Number(this.filters.minScore))
-      }
-      if (this.filters.minAdx !== '') {
-        data = data.filter(s => (s.adx14 ?? 0) >= Number(this.filters.minAdx))
-      }
-      if (this.filters.minVolRatio !== '') {
-        data = data.filter(s => (s.volume_ratio ?? 0) >= Number(this.filters.minVolRatio))
-      }
-      if (this.filters.entryOnly) {
-        data = data.filter(s => s.entry_signal === true)
-      }
-
+      if (this.filters.sector) data = data.filter(s => s.sector === this.filters.sector)
+      if (this.filters.minScore !== '') data = data.filter(s => (s.trend_score ?? 0) >= Number(this.filters.minScore))
+      if (this.filters.minAdx !== '') data = data.filter(s => (s.adx14 ?? 0) >= Number(this.filters.minAdx))
+      if (this.filters.minVolRatio !== '') data = data.filter(s => (s.volume_ratio ?? 0) >= Number(this.filters.minVolRatio))
+      if (this.filters.entryOnly) data = data.filter(s => s.entry_signal === true)
       this.filtered = data
     },
 
     toggleDirection(key) {
       this.activeDirection = this.activeDirection === key ? null : key
       this.applyFilters()
+    },
+
+    async openPanel(ticker) {
+      this.selectedTicker = ticker
+      this.panel = null
+      this.panelLoading = true
+      try {
+        const [detailRes, brokerRes] = await Promise.all([
+          fetch(`/api/detail/${ticker}`),
+          fetch(`/api/broker/${ticker}/flow?days=30`),
+        ])
+        const detail = await detailRes.json()
+        const broker = await brokerRes.json()
+        this.panel = { ...detail.stock, ...detail.analysis, broker }
+      } catch (_) {}
+      this.panelLoading = false
+    },
+
+    closePanel() {
+      this.selectedTicker = null
+      this.panel = null
+    },
+
+    scoreBarWidth(val, max) {
+      if (val == null || max === 0) return '0%'
+      return Math.max(0, Math.min(100, (val / max) * 100)) + '%'
     },
 
     trendClass(d) {
@@ -93,13 +107,28 @@ function dashboard() {
 
     trendLabel(d) {
       const map = {
-        'STRONG UPTREND': '↑↑ Strong Up',
-        'UPTREND': '↑ Uptrend',
-        'SIDEWAYS': '→ Sideways',
-        'DOWNTREND': '↓ Downtrend',
+        'STRONG UPTREND':   '↑↑ Strong Up',
+        'UPTREND':          '↑ Uptrend',
+        'SIDEWAYS':         '→ Sideways',
+        'DOWNTREND':        '↓ Downtrend',
         'STRONG DOWNTREND': '↓↓ Strong Down',
       }
       return map[d] ?? d ?? '-'
+    },
+
+    rsiColor(v) {
+      if (v == null) return 'text-gray-400'
+      if (v >= 70) return 'text-red-500'
+      if (v >= 50) return 'text-green-500'
+      if (v <= 30) return 'text-blue-400'
+      return 'text-yellow-500'
+    },
+
+    adxStrength(v) {
+      if (v == null) return ''
+      if (v >= 25) return 'Kuat'
+      if (v >= 20) return 'Moderat'
+      return 'Lemah'
     },
 
     fmt(v) {
@@ -107,9 +136,15 @@ function dashboard() {
       return Number(v).toLocaleString('id-ID')
     },
 
-    fmtDec(v) {
+    fmtDec(v, d = 2) {
       if (v == null) return '-'
-      return Number(v).toFixed(2)
+      return Number(v).toFixed(d)
+    },
+
+    fmtLot(v) {
+      if (v == null) return '-'
+      const n = Number(v)
+      return (n >= 0 ? '+' : '') + n.toLocaleString('id-ID') + ' lot'
     },
   }
 }

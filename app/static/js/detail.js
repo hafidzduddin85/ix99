@@ -3,7 +3,10 @@ function stockDetail(ticker) {
     ticker,
     data: null,
     broker: { top_net_buying: [], top_net_selling: [], positions: [] },
+    analysis: null,
     loading: true,
+    analysisLoading: false,
+    activeTab: 'teknikal',
     priceChart: null,
     volumeChart: null,
 
@@ -23,7 +26,6 @@ function stockDetail(ticker) {
         ])
         const detail = await detailRes.json()
         const hist = await histRes.json()
-
         this.data = { ...detail.stock, ...detail.analysis }
         this.$nextTick(() => this.renderCharts(hist.reverse()))
       } finally {
@@ -33,16 +35,28 @@ function stockDetail(ticker) {
 
     async fetchBroker() {
       try {
-        const res = await fetch(`/api/broker/${this.ticker}/flow`)
+        const res = await fetch(`/api/broker/${this.ticker}/flow?days=30`)
         this.broker = await res.json()
       } catch (_) {}
+    },
+
+    async fetchAnalysis() {
+      if (this.analysis !== null || this.analysisLoading) return
+      this.analysisLoading = true
+      try {
+        const res = await fetch(`/api/detail/${this.ticker}/analysis`)
+        this.analysis = await res.json()
+      } catch (_) {
+        this.analysis = null
+      } finally {
+        this.analysisLoading = false
+      }
     },
 
     renderCharts(hist) {
       const labels = hist.map(h => h.trade_date)
       const closes = hist.map(h => h.close)
 
-      // fetch indicator history for EMA lines
       fetch(`/api/stocks/${this.ticker}/history?limit=90`)
         .then(r => r.json())
         .then(ind => {
@@ -63,7 +77,6 @@ function stockDetail(ticker) {
             },
           }
 
-          // Price chart
           const priceCtx = document.getElementById('priceChart')
           if (this.priceChart) this.priceChart.destroy()
           this.priceChart = new Chart(priceCtx, {
@@ -71,8 +84,8 @@ function stockDetail(ticker) {
             data: {
               labels,
               datasets: [
-                { label: 'Close', data: closes, borderColor: '#0ea5e9', borderWidth: 2, pointRadius: 0, tension: 0.3 },
-                { label: 'EMA20', data: ema20, borderColor: '#f59e0b', borderWidth: 1.5, pointRadius: 0, tension: 0.3, borderDash: [] },
+                { label: 'Close', data: closes, borderColor: '#0ea5e9', borderWidth: 2, pointRadius: 0, tension: 0.3, fill: false },
+                { label: 'EMA20', data: ema20, borderColor: '#f59e0b', borderWidth: 1.5, pointRadius: 0, tension: 0.3 },
                 { label: 'EMA50', data: ema50, borderColor: '#8b5cf6', borderWidth: 1.5, pointRadius: 0, tension: 0.3 },
                 { label: 'EMA200', data: ema200, borderColor: '#ef4444', borderWidth: 1.5, pointRadius: 0, tension: 0.3 },
               ],
@@ -88,7 +101,6 @@ function stockDetail(ticker) {
             },
           })
 
-          // Volume chart
           const volCtx = document.getElementById('volumeChart')
           if (this.volumeChart) this.volumeChart.destroy()
           this.volumeChart = new Chart(volCtx, {
@@ -102,11 +114,19 @@ function stockDetail(ticker) {
               plugins: { legend: { display: false } },
               scales: {
                 ...commonScales,
-                y: { ticks: { color: textColor, font: { size: 11 }, callback: v => (v / 1e6).toFixed(1) + 'M' }, grid: { color: gridColor } },
+                y: {
+                  ticks: { color: textColor, font: { size: 11 }, callback: v => (v / 1e6).toFixed(1) + 'M' },
+                  grid: { color: gridColor },
+                },
               },
             },
           })
         })
+    },
+
+    scoreBarWidth(val, max) {
+      if (val == null || max === 0) return '0%'
+      return Math.max(0, Math.min(100, (val / max) * 100)) + '%'
     },
 
     trendClass(d) {
@@ -120,19 +140,35 @@ function stockDetail(ticker) {
       return map[d] ?? 'bg-gray-100 text-gray-500'
     },
 
+    rsiColor(v) {
+      if (v == null) return 'text-gray-400'
+      if (v >= 70) return 'text-red-500'
+      if (v >= 50) return 'text-green-500'
+      if (v <= 30) return 'text-blue-400'
+      return 'text-yellow-500'
+    },
+
+    adxStrength(v) {
+      if (v == null) return ''
+      if (v >= 25) return 'Kuat'
+      if (v >= 20) return 'Moderat'
+      return 'Lemah'
+    },
+
     fmt(v) {
       if (v == null) return '-'
       return Number(v).toLocaleString('id-ID')
     },
 
-    fmtDec(v) {
+    fmtDec(v, d = 2) {
       if (v == null) return '-'
-      return Number(v).toFixed(2)
+      return Number(v).toFixed(d)
     },
 
     fmtLot(v) {
       if (v == null) return '-'
-      return Number(v).toLocaleString('id-ID') + ' lot'
+      const n = Number(v)
+      return (n >= 0 ? '+' : '') + n.toLocaleString('id-ID') + ' lot'
     },
   }
 }

@@ -39,3 +39,11 @@ def get_broker_summary(ticker: str, start_date: str, end_date: str) -> dict:
 
 def get_broker_accumulation(ticker: str) -> dict:
     return _get(f"/api/broker-accumulation/{ticker}")
+
+
+def get_analysis(ticker: str) -> dict:
+    return _get(f"/api/analysis/{ticker}")
+
+
+def get_financial_statements(ticker: str, report_type: str = "INCOME_STATEMENT", period: str = "quarterly") -> dict:
+    return _get(f"/api/financial-statements/{ticker}", params={"report_type": report_type, "period": period})

@@ -6,149 +6,361 @@
 
   <!-- Back -->
   <a href="/" class="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-sky-500 mb-4 transition-colors">
-    ← Kembali
+    ← Kembali ke Dashboard
   </a>
 
-  <!-- Header -->
-  <div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-5 mb-4">
-    <template x-if="loading">
-      <div class="text-gray-400">Memuat...</div>
-    </template>
-    <template x-if="!loading && data">
-      <div>
-        <div class="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <h1 class="text-2xl font-bold text-sky-500" x-text="data.ticker"></h1>
-            <div class="text-gray-500 text-sm" x-text="data.company_name"></div>
-            <div class="text-xs text-gray-400 mt-1" x-text="(data.sector ?? '') + (data.subsector ? ' · ' + data.subsector : '')"></div>
-          </div>
-          <div class="text-right">
-            <div class="text-3xl font-bold font-mono" x-text="fmt(data.close)"></div>
-            <div class="mt-1">
-              <span class="badge" :class="trendClass(data.trend_direction)" x-text="data.trend_direction ?? '-'"></span>
-            </div>
-          </div>
-        </div>
-      </div>
-    </template>
-  </div>
-
-  <!-- Indicators Grid -->
-  <template x-if="!loading && data">
-    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 mb-4">
-      <div class="card">
-        <div class="card-label">Trend Score</div>
-        <div class="card-value" x-text="data.trend_score ?? '-'"></div>
-      </div>
-      <div class="card">
-        <div class="card-label">ADX14</div>
-        <div class="card-value" x-text="fmtDec(data.adx14)"></div>
-      </div>
-      <div class="card">
-        <div class="card-label">RSI14</div>
-        <div class="card-value" x-text="fmtDec(data.rsi14)"></div>
-      </div>
-      <div class="card">
-        <div class="card-label">ATR14</div>
-        <div class="card-value" x-text="fmtDec(data.atr14)"></div>
-      </div>
-      <div class="card">
-        <div class="card-label">EMA20</div>
-        <div class="card-value" x-text="fmt(data.ema20)"></div>
-      </div>
-      <div class="card">
-        <div class="card-label">EMA50</div>
-        <div class="card-value" x-text="fmt(data.ema50)"></div>
-      </div>
-      <div class="card">
-        <div class="card-label">EMA200</div>
-        <div class="card-value" x-text="fmt(data.ema200)"></div>
-      </div>
-      <div class="card">
-        <div class="card-label">Vol Ratio</div>
-        <div class="card-value" x-text="fmtDec(data.volume_ratio)"></div>
-      </div>
-      <div class="card">
-        <div class="card-label">+DI / -DI</div>
-        <div class="card-value text-base" x-text="fmtDec(data.plus_di) + ' / ' + fmtDec(data.minus_di)"></div>
-      </div>
-      <div class="card">
-        <div class="card-label">Struktur</div>
-        <div class="card-value text-base flex gap-2 flex-wrap">
-          <span x-show="data.higher_high" class="text-green-500 text-sm">HH</span>
-          <span x-show="data.higher_low" class="text-green-500 text-sm">HL</span>
-          <span x-show="data.lower_high" class="text-red-500 text-sm">LH</span>
-          <span x-show="data.lower_low" class="text-red-500 text-sm">LL</span>
-        </div>
-      </div>
-      <div class="card col-span-2">
-        <div class="card-label">Entry Signal</div>
-        <div class="card-value">
-          <span x-show="data.entry_signal" class="text-green-500">✓ Terpenuhi</span>
-          <span x-show="!data.entry_signal" class="text-gray-400">Belum terpenuhi</span>
-        </div>
-      </div>
-    </div>
+  <!-- Loading -->
+  <template x-if="loading">
+    <div class="text-gray-400 py-12 text-center">Memuat data...</div>
   </template>
 
-  <!-- Chart -->
-  <div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4 mb-4">
-    <div class="text-sm font-medium mb-3 text-gray-600 dark:text-gray-400">Harga & EMA</div>
-    <canvas id="priceChart" height="120"></canvas>
-  </div>
+  <template x-if="!loading && data">
+    <div>
 
-  <!-- Volume Chart -->
-  <div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4 mb-4">
-    <div class="text-sm font-medium mb-3 text-gray-600 dark:text-gray-400">Volume</div>
-    <canvas id="volumeChart" height="60"></canvas>
-  </div>
-
-  <!-- Broker Flow -->
-  <div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4">
-    <div class="text-sm font-medium mb-3 text-gray-600 dark:text-gray-400">Broker Flow (30 hari)</div>
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-
-      <!-- Net Buying -->
-      <div>
-        <div class="text-xs font-semibold text-green-600 dark:text-green-400 mb-2">Top Net Buying</div>
-        <div class="space-y-1">
-          <template x-for="b in broker.top_net_buying" :key="b.broker_code">
-            <div class="flex justify-between text-sm py-1 border-b border-gray-100 dark:border-gray-800">
-              <span class="font-medium" x-text="b.broker_code"></span>
-              <span class="text-green-600 dark:text-green-400 font-mono" x-text="fmtLot(b.net_lot)"></span>
+      <!-- Header -->
+      <div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-5 mb-4">
+        <div class="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <div class="flex items-center gap-3 flex-wrap">
+              <h1 class="text-3xl font-bold text-sky-500" x-text="data.ticker"></h1>
+              <span class="badge text-sm px-3 py-1" :class="trendClass(data.trend_direction)" x-text="data.trend_direction ?? '-'"></span>
+              <span x-show="data.entry_signal" class="inline-flex items-center gap-1 text-xs font-semibold text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 px-2.5 py-1 rounded-full">✓ Entry Signal</span>
             </div>
-          </template>
-          <template x-if="broker.top_net_buying?.length === 0">
-            <div class="text-gray-400 text-xs">Tidak ada data</div>
-          </template>
+            <div class="text-gray-600 dark:text-gray-300 font-medium mt-1" x-text="data.company_name ?? ''"></div>
+            <div class="text-xs text-gray-400 mt-0.5" x-text="(data.sector ?? '') + (data.subsector ? ' · ' + data.subsector : '')"></div>
+          </div>
+          <div class="text-right">
+            <div class="text-4xl font-bold font-mono" x-text="fmt(data.close)"></div>
+            <div class="text-xs text-gray-400 mt-1" x-text="'Data: ' + (data.trade_date ?? '-')"></div>
+          </div>
+        </div>
+
+        <!-- Quick Stats Row -->
+        <div class="grid grid-cols-4 sm:grid-cols-8 gap-3 mt-5 pt-4 border-t border-gray-100 dark:border-gray-800">
+          <div class="text-center">
+            <div class="text-xs text-gray-400 mb-0.5">Score</div>
+            <div class="font-bold text-lg" x-text="data.trend_score ?? '-'"></div>
+          </div>
+          <div class="text-center">
+            <div class="text-xs text-gray-400 mb-0.5">ADX</div>
+            <div class="font-bold" x-text="fmtDec(data.adx14)"></div>
+          </div>
+          <div class="text-center">
+            <div class="text-xs text-gray-400 mb-0.5">RSI</div>
+            <div class="font-bold" :class="rsiColor(data.rsi14)" x-text="fmtDec(data.rsi14)"></div>
+          </div>
+          <div class="text-center">
+            <div class="text-xs text-gray-400 mb-0.5">Vol Ratio</div>
+            <div class="font-bold" x-text="fmtDec(data.volume_ratio) + 'x'"></div>
+          </div>
+          <div class="text-center">
+            <div class="text-xs text-gray-400 mb-0.5">EMA20</div>
+            <div class="font-mono text-sm font-semibold" x-text="fmt(data.ema20)"></div>
+          </div>
+          <div class="text-center">
+            <div class="text-xs text-gray-400 mb-0.5">EMA50</div>
+            <div class="font-mono text-sm font-semibold" x-text="fmt(data.ema50)"></div>
+          </div>
+          <div class="text-center">
+            <div class="text-xs text-gray-400 mb-0.5">EMA200</div>
+            <div class="font-mono text-sm font-semibold" x-text="fmt(data.ema200)"></div>
+          </div>
+          <div class="text-center">
+            <div class="text-xs text-gray-400 mb-0.5">ATR14</div>
+            <div class="font-mono text-sm font-semibold" x-text="fmtDec(data.atr14)"></div>
+          </div>
         </div>
       </div>
 
-      <!-- Net Selling -->
-      <div>
-        <div class="text-xs font-semibold text-red-500 mb-2">Top Net Selling</div>
-        <div class="space-y-1">
-          <template x-for="b in broker.top_net_selling" :key="b.broker_code">
-            <div class="flex justify-between text-sm py-1 border-b border-gray-100 dark:border-gray-800">
-              <span class="font-medium" x-text="b.broker_code"></span>
-              <span class="text-red-500 font-mono" x-text="fmtLot(b.net_lot)"></span>
-            </div>
-          </template>
-          <template x-if="broker.top_net_selling?.length === 0">
-            <div class="text-gray-400 text-xs">Tidak ada data</div>
-          </template>
+      <!-- Tabs -->
+      <div class="flex gap-1 mb-4 bg-gray-100 dark:bg-gray-800 rounded-xl p-1 w-fit">
+        <button
+          @click="activeTab = 'teknikal'"
+          class="px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+          :class="activeTab === 'teknikal' ? 'bg-white dark:bg-gray-900 text-sky-500 shadow-sm' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'"
+        >📊 Teknikal</button>
+        <button
+          @click="activeTab = 'broker'"
+          class="px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+          :class="activeTab === 'broker' ? 'bg-white dark:bg-gray-900 text-sky-500 shadow-sm' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'"
+        >🏦 Broker Flow</button>
+        <button
+          @click="activeTab = 'analisis'; fetchAnalysis()"
+          class="px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+          :class="activeTab === 'analisis' ? 'bg-white dark:bg-gray-900 text-sky-500 shadow-sm' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'"
+        >🔍 Analisis</button>
+      </div>
+
+      <!-- Tab: Teknikal -->
+      <div x-show="activeTab === 'teknikal'" class="space-y-4">
+
+        <!-- Chart Harga -->
+        <div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4">
+          <div class="text-sm font-semibold mb-3 text-gray-600 dark:text-gray-400">Harga & EMA (90 hari)</div>
+          <canvas id="priceChart" height="120"></canvas>
         </div>
+
+        <!-- Volume Chart -->
+        <div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4">
+          <div class="text-sm font-semibold mb-3 text-gray-600 dark:text-gray-400">Volume</div>
+          <canvas id="volumeChart" height="60"></canvas>
+        </div>
+
+        <!-- Score Breakdown + Struktur -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+          <!-- Score Breakdown -->
+          <div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4">
+            <div class="flex items-center justify-between mb-4">
+              <div class="text-sm font-semibold text-gray-600 dark:text-gray-400">Trend Score Breakdown</div>
+              <div class="text-2xl font-bold" x-text="data.trend_score ?? '-'"></div>
+            </div>
+            <div class="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-full mb-4">
+              <div class="h-2 rounded-full"
+                :style="`width:${Math.min(100, data.trend_score ?? 0)}%`"
+                :class="(data.trend_score ?? 0) >= 65 ? 'bg-green-500' : (data.trend_score ?? 0) >= 45 ? 'bg-yellow-400' : 'bg-red-400'">
+              </div>
+            </div>
+            <div class="space-y-3 text-sm">
+              <div>
+                <div class="flex justify-between text-xs text-gray-500 mb-1">
+                  <span>EMA Trend</span><span x-text="fmtDec(data.ema_signal, 1) + ' / 30'"></span>
+                </div>
+                <div class="w-full h-2 bg-gray-100 dark:bg-gray-700 rounded">
+                  <div class="h-2 bg-sky-400 rounded" :style="`width:${scoreBarWidth(data.ema_signal, 30)}`"></div>
+                </div>
+              </div>
+              <div>
+                <div class="flex justify-between text-xs text-gray-500 mb-1">
+                  <span>ADX / Kekuatan</span><span x-text="fmtDec(data.adx_signal, 1) + ' / 20'"></span>
+                </div>
+                <div class="w-full h-2 bg-gray-100 dark:bg-gray-700 rounded">
+                  <div class="h-2 bg-violet-400 rounded" :style="`width:${scoreBarWidth(data.adx_signal, 20)}`"></div>
+                </div>
+              </div>
+              <div>
+                <div class="flex justify-between text-xs text-gray-500 mb-1">
+                  <span>Momentum / RSI</span><span x-text="fmtDec(data.momentum_signal, 1) + ' / 15'"></span>
+                </div>
+                <div class="w-full h-2 bg-gray-100 dark:bg-gray-700 rounded">
+                  <div class="h-2 bg-amber-400 rounded" :style="`width:${scoreBarWidth(data.momentum_signal, 15)}`"></div>
+                </div>
+              </div>
+              <div>
+                <div class="flex justify-between text-xs text-gray-500 mb-1">
+                  <span>Volume</span><span x-text="fmtDec(data.volume_signal, 1) + ' / 15'"></span>
+                </div>
+                <div class="w-full h-2 bg-gray-100 dark:bg-gray-700 rounded">
+                  <div class="h-2 bg-teal-400 rounded" :style="`width:${scoreBarWidth(data.volume_signal, 15)}`"></div>
+                </div>
+              </div>
+              <div>
+                <div class="flex justify-between text-xs text-gray-500 mb-1">
+                  <span>Struktur Harga</span><span x-text="fmtDec(data.structure_signal, 1) + ' / 20'"></span>
+                </div>
+                <div class="w-full h-2 bg-gray-100 dark:bg-gray-700 rounded">
+                  <div class="h-2 bg-pink-400 rounded" :style="`width:${scoreBarWidth(data.structure_signal, 20)}`"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Struktur + Kondisi -->
+          <div class="space-y-4">
+            <!-- Struktur Harga -->
+            <div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4">
+              <div class="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-3">Struktur Harga</div>
+              <div class="grid grid-cols-2 gap-3">
+                <div class="flex items-center gap-2 text-sm">
+                  <span :class="data.higher_high ? 'text-green-500' : 'text-gray-300 dark:text-gray-600'" class="text-lg">●</span>
+                  <span :class="data.higher_high ? 'text-green-600 dark:text-green-400 font-semibold' : 'text-gray-400'">Higher High</span>
+                </div>
+                <div class="flex items-center gap-2 text-sm">
+                  <span :class="data.higher_low ? 'text-green-500' : 'text-gray-300 dark:text-gray-600'" class="text-lg">●</span>
+                  <span :class="data.higher_low ? 'text-green-600 dark:text-green-400 font-semibold' : 'text-gray-400'">Higher Low</span>
+                </div>
+                <div class="flex items-center gap-2 text-sm">
+                  <span :class="data.lower_high ? 'text-red-500' : 'text-gray-300 dark:text-gray-600'" class="text-lg">●</span>
+                  <span :class="data.lower_high ? 'text-red-500 font-semibold' : 'text-gray-400'">Lower High</span>
+                </div>
+                <div class="flex items-center gap-2 text-sm">
+                  <span :class="data.lower_low ? 'text-red-500' : 'text-gray-300 dark:text-gray-600'" class="text-lg">●</span>
+                  <span :class="data.lower_low ? 'text-red-500 font-semibold' : 'text-gray-400'">Lower Low</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Kondisi Indikator -->
+            <div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4">
+              <div class="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-3">Kondisi Indikator</div>
+              <div class="space-y-2 text-xs">
+                <div class="flex justify-between items-center py-1 border-b border-gray-50 dark:border-gray-800">
+                  <span class="text-gray-500">Harga vs EMA20</span>
+                  <span :class="data.close > data.ema20 ? 'text-green-500 font-semibold' : 'text-red-500 font-semibold'"
+                    x-text="data.close > data.ema20 ? '↑ Di atas' : '↓ Di bawah'"></span>
+                </div>
+                <div class="flex justify-between items-center py-1 border-b border-gray-50 dark:border-gray-800">
+                  <span class="text-gray-500">EMA20 vs EMA50</span>
+                  <span :class="data.ema20 > data.ema50 ? 'text-green-500 font-semibold' : 'text-red-500 font-semibold'"
+                    x-text="data.ema20 > data.ema50 ? '↑ Bullish' : '↓ Bearish'"></span>
+                </div>
+                <div class="flex justify-between items-center py-1 border-b border-gray-50 dark:border-gray-800">
+                  <span class="text-gray-500">EMA50 vs EMA200</span>
+                  <span x-show="data.ema200 != null" :class="data.ema50 > data.ema200 ? 'text-green-500 font-semibold' : 'text-red-500 font-semibold'"
+                    x-text="data.ema50 > data.ema200 ? '↑ Bullish' : '↓ Bearish'"></span>
+                  <span x-show="data.ema200 == null" class="text-gray-400">Data kurang</span>
+                </div>
+                <div class="flex justify-between items-center py-1 border-b border-gray-50 dark:border-gray-800">
+                  <span class="text-gray-500">+DI vs -DI</span>
+                  <span :class="data.plus_di > data.minus_di ? 'text-green-500 font-semibold' : 'text-red-500 font-semibold'"
+                    x-text="data.plus_di > data.minus_di ? `+DI ${fmtDec(data.plus_di)} > -DI ${fmtDec(data.minus_di)}` : `-DI ${fmtDec(data.minus_di)} > +DI ${fmtDec(data.plus_di)}`"></span>
+                </div>
+                <div class="flex justify-between items-center py-1">
+                  <span class="text-gray-500">RSI Zone</span>
+                  <span :class="rsiColor(data.rsi14)" class="font-semibold"
+                    x-text="data.rsi14 >= 70 ? 'Overbought' : data.rsi14 >= 50 ? 'Bullish Zone' : data.rsi14 <= 30 ? 'Oversold' : 'Bearish Zone'"></span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Entry Signal Detail -->
+        <div
+          class="rounded-xl p-4 border"
+          :class="data.entry_signal ? 'bg-green-50 dark:bg-green-950 border-green-200 dark:border-green-800' : 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700'"
+        >
+          <div class="flex items-center gap-2 mb-2">
+            <span x-show="data.entry_signal" class="text-green-600 dark:text-green-400 font-bold text-lg">✓</span>
+            <span x-show="!data.entry_signal" class="text-gray-400 font-bold text-lg">✗</span>
+            <span class="font-semibold text-sm" :class="data.entry_signal ? 'text-green-700 dark:text-green-300' : 'text-gray-500'">
+              Entry Signal
+              <span x-show="data.entry_signal"> — Semua kondisi teknikal terpenuhi</span>
+              <span x-show="!data.entry_signal"> — Belum semua kondisi terpenuhi</span>
+            </span>
+          </div>
+          <div class="text-xs text-gray-400">Entry signal hanya menunjukkan kondisi teknikal sistem, bukan rekomendasi beli/jual.</div>
+        </div>
+
+      </div>
+
+      <!-- Tab: Broker Flow -->
+      <div x-show="activeTab === 'broker'" class="space-y-4">
+
+        <!-- Top Broker Table -->
+        <div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4">
+          <div class="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-4">Broker Flow — 30 Hari Terakhir</div>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+            <!-- Net Buying -->
+            <div>
+              <div class="text-xs font-bold text-green-600 dark:text-green-400 uppercase tracking-wide mb-3">Top Net Buying</div>
+              <div class="space-y-2">
+                <template x-for="b in (broker.top_net_buying ?? [])" :key="b.broker_code">
+                  <div class="flex items-center gap-3 py-2 border-b border-gray-100 dark:border-gray-800">
+                    <span class="font-bold text-sm w-10" x-text="b.broker_code"></span>
+                    <div class="flex-1">
+                      <div class="flex justify-between text-xs mb-1">
+                        <span class="text-gray-400" x-text="`B: ${fmtLot(b.total_buy_lot)} | S: ${fmtLot(b.total_sell_lot)}`"></span>
+                        <span class="text-green-600 dark:text-green-400 font-semibold" x-text="fmtLot(b.net_lot)"></span>
+                      </div>
+                      <div class="w-full h-1.5 bg-gray-100 dark:bg-gray-700 rounded">
+                        <div class="h-1.5 bg-green-400 rounded" :style="`width:${b.concentration_buy_pct ?? 0}%`"></div>
+                      </div>
+                    </div>
+                    <span class="text-xs text-gray-400 w-10 text-right" x-text="fmtDec(b.concentration_buy_pct) + '%'"></span>
+                  </div>
+                </template>
+                <template x-if="!(broker.top_net_buying?.length)">
+                  <div class="text-gray-400 text-xs py-4 text-center">Tidak ada data</div>
+                </template>
+              </div>
+            </div>
+
+            <!-- Net Selling -->
+            <div>
+              <div class="text-xs font-bold text-red-500 uppercase tracking-wide mb-3">Top Net Selling</div>
+              <div class="space-y-2">
+                <template x-for="b in (broker.top_net_selling ?? [])" :key="b.broker_code">
+                  <div class="flex items-center gap-3 py-2 border-b border-gray-100 dark:border-gray-800">
+                    <span class="font-bold text-sm w-10" x-text="b.broker_code"></span>
+                    <div class="flex-1">
+                      <div class="flex justify-between text-xs mb-1">
+                        <span class="text-gray-400" x-text="`B: ${fmtLot(b.total_buy_lot)} | S: ${fmtLot(b.total_sell_lot)}`"></span>
+                        <span class="text-red-500 font-semibold" x-text="fmtLot(b.net_lot)"></span>
+                      </div>
+                      <div class="w-full h-1.5 bg-gray-100 dark:bg-gray-700 rounded">
+                        <div class="h-1.5 bg-red-400 rounded" :style="`width:${b.concentration_sell_pct ?? 0}%`"></div>
+                      </div>
+                    </div>
+                    <span class="text-xs text-gray-400 w-10 text-right" x-text="fmtDec(b.concentration_sell_pct) + '%'"></span>
+                  </div>
+                </template>
+                <template x-if="!(broker.top_net_selling?.length)">
+                  <div class="text-gray-400 text-xs py-4 text-center">Tidak ada data</div>
+                </template>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Estimated Positions -->
+        <div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4">
+          <div class="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-4">Estimasi Posisi Broker</div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-xs">
+              <thead>
+                <tr class="border-b border-gray-200 dark:border-gray-800 text-gray-400">
+                  <th class="text-left py-2 pr-4">Broker</th>
+                  <th class="text-right py-2 pr-4">Est. Lot</th>
+                  <th class="text-right py-2 pr-4">Avg Price</th>
+                  <th class="text-right py-2">Tgl Update</th>
+                </tr>
+              </thead>
+              <tbody>
+                <template x-for="p in (broker.positions ?? [])" :key="p.broker_code">
+                  <tr class="border-b border-gray-50 dark:border-gray-800">
+                    <td class="py-2 pr-4 font-semibold" x-text="p.broker_code"></td>
+                    <td class="py-2 pr-4 text-right font-mono"
+                      :class="(p.closing_estimated_lot ?? 0) >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-500'"
+                      x-text="fmt(p.closing_estimated_lot)"></td>
+                    <td class="py-2 pr-4 text-right font-mono" x-text="fmt(p.estimated_average_price)"></td>
+                    <td class="py-2 text-right text-gray-400" x-text="p.trade_date ?? '-'"></td>
+                  </tr>
+                </template>
+                <template x-if="!(broker.positions?.length)">
+                  <tr><td colspan="4" class="text-center py-6 text-gray-400">Tidak ada data posisi</td></tr>
+                </template>
+              </tbody>
+            </table>
+          </div>
+          <div class="text-xs text-gray-400 mt-3">* Posisi broker adalah estimasi berdasarkan data transaksi dan dapat memiliki keterbatasan akurasi.</div>
+        </div>
+
+      </div>
+
+      <!-- Tab: Analisis -->
+      <div x-show="activeTab === 'analisis'" class="space-y-4">
+        <template x-if="analysisLoading">
+          <div class="text-center py-12 text-gray-400 text-sm">Memuat analisis dari Arjum...</div>
+        </template>
+        <template x-if="!analysisLoading && analysis">
+          <div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-5">
+            <div class="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-4">Analisis Fundamental & Teknikal</div>
+            <pre class="text-xs text-gray-600 dark:text-gray-300 whitespace-pre-wrap leading-relaxed" x-text="JSON.stringify(analysis, null, 2)"></pre>
+          </div>
+        </template>
+        <template x-if="!analysisLoading && !analysis">
+          <div class="text-center py-12 text-gray-400 text-sm">Data analisis tidak tersedia</div>
+        </template>
       </div>
 
     </div>
-  </div>
+  </template>
 
 </div>
 
 <style>
-  .card { @apply bg-gray-50 dark:bg-gray-800 rounded-xl p-4 border border-gray-100 dark:border-gray-700; }
-  .card-label { @apply text-xs text-gray-500 dark:text-gray-400 mb-1; }
-  .card-value { @apply text-xl font-bold; }
   .badge { @apply inline-block px-2 py-0.5 rounded-full text-xs font-medium; }
 </style>
 

@@ -2,7 +2,7 @@
 {% block title %}Dashboard — IX99{% endblock %}
 
 {% block content %}
-<div x-data="dashboard()" x-init="init()">
+<div x-data="dashboard()" x-init="init()" @keydown.escape.window="closePanel()">
 
   <!-- Summary Cards -->
   <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-6">
@@ -21,60 +21,26 @@
   <!-- Filter Bar -->
   <div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4 mb-4">
     <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-
-      <input
-        x-model="filters.search"
-        @input="applyFilters()"
-        type="text"
-        placeholder="Cari ticker..."
-        class="input col-span-2 sm:col-span-1"
-      />
-
+      <input x-model="filters.search" @input="applyFilters()" type="text" placeholder="Cari ticker / nama..." class="input col-span-2 sm:col-span-1" />
       <select x-model="filters.sector" @change="applyFilters()" class="input">
         <option value="">Semua Sektor</option>
         <template x-for="s in sectors" :key="s">
           <option :value="s" x-text="s"></option>
         </template>
       </select>
-
-      <input
-        x-model.number="filters.minScore"
-        @input="applyFilters()"
-        type="number"
-        placeholder="Min Score"
-        min="0" max="100"
-        class="input"
-      />
-
-      <input
-        x-model.number="filters.minAdx"
-        @input="applyFilters()"
-        type="number"
-        placeholder="Min ADX"
-        min="0"
-        class="input"
-      />
-
-      <input
-        x-model.number="filters.minVolRatio"
-        @input="applyFilters()"
-        type="number"
-        placeholder="Min Vol Ratio"
-        step="0.1"
-        class="input"
-      />
-
-      <div class="flex items-center gap-2">
-        <label class="flex items-center gap-2 text-sm cursor-pointer">
+      <input x-model.number="filters.minScore" @input="applyFilters()" type="number" placeholder="Min Score" min="0" max="100" class="input" />
+      <input x-model.number="filters.minAdx" @input="applyFilters()" type="number" placeholder="Min ADX" min="0" class="input" />
+      <input x-model.number="filters.minVolRatio" @input="applyFilters()" type="number" placeholder="Min Vol Ratio" step="0.1" class="input" />
+      <div class="flex items-center gap-3 flex-wrap">
+        <label class="flex items-center gap-1.5 text-sm cursor-pointer">
           <input type="checkbox" x-model="filters.entryOnly" @change="applyFilters()" class="rounded" />
-          Entry Signal
+          Entry
         </label>
-        <label class="flex items-center gap-2 text-sm cursor-pointer">
+        <label class="flex items-center gap-1.5 text-sm cursor-pointer">
           <input type="checkbox" x-model="filters.watchlistOnly" @change="applyFilters()" class="rounded" />
           Watchlist
         </label>
       </div>
-
     </div>
   </div>
 
@@ -104,34 +70,291 @@
         </template>
         <template x-for="s in filtered" :key="s.ticker">
           <tr
-            class="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer transition-colors"
-            @click="window.location.href = '/stock/' + s.ticker"
+            class="border-b border-gray-100 dark:border-gray-800 hover:bg-sky-50 dark:hover:bg-gray-800 cursor-pointer transition-colors"
+            :class="selectedTicker === s.ticker ? 'bg-sky-50 dark:bg-gray-800' : ''"
+            @click="openPanel(s.ticker)"
           >
-            <td class="td font-semibold text-sky-600 dark:text-sky-400" x-text="s.ticker"></td>
+            <td class="td">
+              <div class="font-semibold text-sky-600 dark:text-sky-400" x-text="s.ticker"></div>
+              <div class="text-xs text-gray-400 truncate max-w-[120px]" x-text="s.company_name ?? ''"></div>
+            </td>
             <td class="td hidden sm:table-cell text-gray-500 text-xs" x-text="s.sector ?? '-'"></td>
-            <td class="td font-mono" x-text="fmt(s.close)"></td>
+            <td class="td font-mono font-medium" x-text="fmt(s.close)"></td>
             <td class="td">
               <span class="badge" :class="trendClass(s.trend_direction)" x-text="trendLabel(s.trend_direction)"></span>
             </td>
-            <td class="td font-semibold" x-text="s.trend_score ?? '-'"></td>
-            <td class="td hidden md:table-cell" x-text="fmtDec(s.adx14)"></td>
-            <td class="td hidden md:table-cell" x-text="fmtDec(s.rsi14)"></td>
-            <td class="td hidden lg:table-cell" x-text="fmtDec(s.volume_ratio)"></td>
+            <td class="td">
+              <div class="font-bold" x-text="s.trend_score ?? '-'"></div>
+              <div class="w-16 h-1 bg-gray-200 dark:bg-gray-700 rounded mt-1">
+                <div class="h-1 rounded transition-all"
+                  :style="`width:${Math.min(100, s.trend_score ?? 0)}%`"
+                  :class="(s.trend_score ?? 0) >= 65 ? 'bg-green-500' : (s.trend_score ?? 0) >= 45 ? 'bg-yellow-400' : 'bg-red-400'">
+                </div>
+              </div>
+            </td>
+            <td class="td hidden md:table-cell">
+              <span x-text="fmtDec(s.adx14)"></span>
+              <span class="text-xs text-gray-400 ml-1" x-text="adxStrength(s.adx14)"></span>
+            </td>
+            <td class="td hidden md:table-cell" :class="rsiColor(s.rsi14)" x-text="fmtDec(s.rsi14)"></td>
+            <td class="td hidden lg:table-cell" x-text="fmtDec(s.volume_ratio) + 'x'"></td>
             <td class="td hidden lg:table-cell text-xs">
-              <span x-text="s.higher_high ? 'HH' : ''" class="text-green-600 dark:text-green-400 mr-1"></span>
-              <span x-text="s.higher_low ? 'HL' : ''" class="text-green-600 dark:text-green-400 mr-1"></span>
-              <span x-text="s.lower_high ? 'LH' : ''" class="text-red-500 mr-1"></span>
-              <span x-text="s.lower_low ? 'LL' : ''" class="text-red-500"></span>
+              <span x-show="s.higher_high" class="text-green-600 dark:text-green-400 mr-1">HH</span>
+              <span x-show="s.higher_low" class="text-green-600 dark:text-green-400 mr-1">HL</span>
+              <span x-show="s.lower_high" class="text-red-500 mr-1">LH</span>
+              <span x-show="s.lower_low" class="text-red-500">LL</span>
             </td>
             <td class="td">
-              <span x-show="s.entry_signal" class="text-green-500 font-bold">✓</span>
-              <span x-show="!s.entry_signal" class="text-gray-300">—</span>
+              <span x-show="s.entry_signal" class="inline-flex items-center gap-1 text-xs font-semibold text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-950 px-2 py-0.5 rounded-full">✓ Entry</span>
+              <span x-show="!s.entry_signal" class="text-gray-300 dark:text-gray-600">—</span>
             </td>
           </tr>
         </template>
       </tbody>
     </table>
     <div class="px-4 py-3 text-xs text-gray-400" x-text="`${filtered.length} saham ditampilkan`"></div>
+  </div>
+
+  <!-- Slide-out Panel Overlay -->
+  <div
+    x-show="selectedTicker !== null"
+    x-transition:enter="transition ease-out duration-200"
+    x-transition:enter-start="opacity-0"
+    x-transition:enter-end="opacity-100"
+    x-transition:leave="transition ease-in duration-150"
+    x-transition:leave-start="opacity-100"
+    x-transition:leave-end="opacity-0"
+    class="fixed inset-0 bg-black/40 z-40"
+    @click.self="closePanel()"
+  ></div>
+
+  <!-- Slide-out Panel -->
+  <div
+    x-show="selectedTicker !== null"
+    x-transition:enter="transition ease-out duration-250"
+    x-transition:enter-start="translate-x-full"
+    x-transition:enter-end="translate-x-0"
+    x-transition:leave="transition ease-in duration-200"
+    x-transition:leave-start="translate-x-0"
+    x-transition:leave-end="translate-x-full"
+    class="fixed top-0 right-0 h-full w-full sm:w-[420px] bg-white dark:bg-gray-900 shadow-2xl z-50 overflow-y-auto flex flex-col"
+  >
+    <!-- Panel Header -->
+    <div class="flex items-center justify-between px-5 py-4 border-b border-gray-200 dark:border-gray-800 sticky top-0 bg-white dark:bg-gray-900 z-10">
+      <div>
+        <span class="font-bold text-lg text-sky-500" x-text="selectedTicker"></span>
+        <template x-if="panel">
+          <span class="text-xs text-gray-400 ml-2" x-text="panel.company_name ?? ''"></span>
+        </template>
+      </div>
+      <div class="flex items-center gap-2">
+        <template x-if="panel">
+          <a
+            :href="'/stock/' + selectedTicker"
+            class="text-xs px-3 py-1.5 rounded-lg bg-sky-500 hover:bg-sky-600 text-white font-medium transition-colors"
+          >Detail Lengkap →</a>
+        </template>
+        <button @click="closePanel()" class="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 transition-colors">✕</button>
+      </div>
+    </div>
+
+    <!-- Panel Loading -->
+    <template x-if="panelLoading">
+      <div class="flex-1 flex items-center justify-center text-gray-400 text-sm">Memuat data...</div>
+    </template>
+
+    <!-- Panel Content -->
+    <template x-if="!panelLoading && panel">
+      <div class="p-5 space-y-5">
+
+        <!-- Harga + Trend -->
+        <div class="flex items-start justify-between">
+          <div>
+            <div class="text-3xl font-bold font-mono" x-text="fmt(panel.close)"></div>
+            <div class="text-xs text-gray-400 mt-0.5" x-text="'per ' + (panel.trade_date ?? '-')"></div>
+          </div>
+          <div class="text-right">
+            <span class="badge text-sm px-3 py-1" :class="trendClass(panel.trend_direction)" x-text="panel.trend_direction ?? '-'"></span>
+            <div class="text-xs text-gray-400 mt-1" x-text="panel.sector ?? ''"></div>
+          </div>
+        </div>
+
+        <!-- Trend Score Breakdown -->
+        <div class="bg-gray-50 dark:bg-gray-800 rounded-xl p-4">
+          <div class="flex items-center justify-between mb-3">
+            <div class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Trend Score</div>
+            <div class="text-2xl font-bold" x-text="panel.trend_score ?? '-'"></div>
+          </div>
+          <!-- Score bar total -->
+          <div class="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-full mb-4">
+            <div class="h-2 rounded-full transition-all"
+              :style="`width:${Math.min(100, panel.trend_score ?? 0)}%`"
+              :class="(panel.trend_score ?? 0) >= 65 ? 'bg-green-500' : (panel.trend_score ?? 0) >= 45 ? 'bg-yellow-400' : 'bg-red-400'">
+            </div>
+          </div>
+          <!-- Komponen score -->
+          <div class="space-y-2 text-xs">
+            <div class="flex items-center gap-2">
+              <span class="w-24 text-gray-500">EMA Trend</span>
+              <div class="flex-1 h-1.5 bg-gray-200 dark:bg-gray-700 rounded">
+                <div class="h-1.5 bg-sky-400 rounded" :style="`width:${scoreBarWidth(panel.ema_signal, 30)}`"></div>
+              </div>
+              <span class="w-8 text-right font-mono" x-text="fmtDec(panel.ema_signal, 1)"></span>
+              <span class="text-gray-400">/30</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="w-24 text-gray-500">ADX</span>
+              <div class="flex-1 h-1.5 bg-gray-200 dark:bg-gray-700 rounded">
+                <div class="h-1.5 bg-violet-400 rounded" :style="`width:${scoreBarWidth(panel.adx_signal, 20)}`"></div>
+              </div>
+              <span class="w-8 text-right font-mono" x-text="fmtDec(panel.adx_signal, 1)"></span>
+              <span class="text-gray-400">/20</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="w-24 text-gray-500">Momentum</span>
+              <div class="flex-1 h-1.5 bg-gray-200 dark:bg-gray-700 rounded">
+                <div class="h-1.5 bg-amber-400 rounded" :style="`width:${scoreBarWidth(panel.momentum_signal, 15)}`"></div>
+              </div>
+              <span class="w-8 text-right font-mono" x-text="fmtDec(panel.momentum_signal, 1)"></span>
+              <span class="text-gray-400">/15</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="w-24 text-gray-500">Volume</span>
+              <div class="flex-1 h-1.5 bg-gray-200 dark:bg-gray-700 rounded">
+                <div class="h-1.5 bg-teal-400 rounded" :style="`width:${scoreBarWidth(panel.volume_signal, 15)}`"></div>
+              </div>
+              <span class="w-8 text-right font-mono" x-text="fmtDec(panel.volume_signal, 1)"></span>
+              <span class="text-gray-400">/15</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="w-24 text-gray-500">Struktur</span>
+              <div class="flex-1 h-1.5 bg-gray-200 dark:bg-gray-700 rounded">
+                <div class="h-1.5 bg-pink-400 rounded" :style="`width:${scoreBarWidth(panel.structure_signal, 20)}`"></div>
+              </div>
+              <span class="w-8 text-right font-mono" x-text="fmtDec(panel.structure_signal, 1)"></span>
+              <span class="text-gray-400">/20</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Indikator Grid -->
+        <div class="grid grid-cols-3 gap-2 text-xs">
+          <div class="bg-gray-50 dark:bg-gray-800 rounded-lg p-3">
+            <div class="text-gray-400 mb-1">EMA20</div>
+            <div class="font-bold font-mono" x-text="fmt(panel.ema20)"></div>
+          </div>
+          <div class="bg-gray-50 dark:bg-gray-800 rounded-lg p-3">
+            <div class="text-gray-400 mb-1">EMA50</div>
+            <div class="font-bold font-mono" x-text="fmt(panel.ema50)"></div>
+          </div>
+          <div class="bg-gray-50 dark:bg-gray-800 rounded-lg p-3">
+            <div class="text-gray-400 mb-1">EMA200</div>
+            <div class="font-bold font-mono" x-text="fmt(panel.ema200)"></div>
+          </div>
+          <div class="bg-gray-50 dark:bg-gray-800 rounded-lg p-3">
+            <div class="text-gray-400 mb-1">RSI14</div>
+            <div class="font-bold" :class="rsiColor(panel.rsi14)" x-text="fmtDec(panel.rsi14)"></div>
+          </div>
+          <div class="bg-gray-50 dark:bg-gray-800 rounded-lg p-3">
+            <div class="text-gray-400 mb-1">ADX14</div>
+            <div class="font-bold" x-text="fmtDec(panel.adx14)"></div>
+            <div class="text-gray-400 mt-0.5" x-text="adxStrength(panel.adx14)"></div>
+          </div>
+          <div class="bg-gray-50 dark:bg-gray-800 rounded-lg p-3">
+            <div class="text-gray-400 mb-1">ATR14</div>
+            <div class="font-bold font-mono" x-text="fmtDec(panel.atr14)"></div>
+          </div>
+          <div class="bg-gray-50 dark:bg-gray-800 rounded-lg p-3">
+            <div class="text-gray-400 mb-1">+DI</div>
+            <div class="font-bold text-green-500" x-text="fmtDec(panel.plus_di)"></div>
+          </div>
+          <div class="bg-gray-50 dark:bg-gray-800 rounded-lg p-3">
+            <div class="text-gray-400 mb-1">-DI</div>
+            <div class="font-bold text-red-500" x-text="fmtDec(panel.minus_di)"></div>
+          </div>
+          <div class="bg-gray-50 dark:bg-gray-800 rounded-lg p-3">
+            <div class="text-gray-400 mb-1">Vol Ratio</div>
+            <div class="font-bold" x-text="fmtDec(panel.volume_ratio) + 'x'"></div>
+          </div>
+        </div>
+
+        <!-- Struktur Harga -->
+        <div class="bg-gray-50 dark:bg-gray-800 rounded-xl p-4">
+          <div class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Struktur Harga</div>
+          <div class="grid grid-cols-2 gap-2 text-xs">
+            <div class="flex items-center gap-2">
+              <span :class="panel.higher_high ? 'text-green-500' : 'text-gray-300 dark:text-gray-600'" class="font-bold text-sm">●</span>
+              <span :class="panel.higher_high ? 'text-green-600 dark:text-green-400 font-semibold' : 'text-gray-400'">Higher High</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <span :class="panel.higher_low ? 'text-green-500' : 'text-gray-300 dark:text-gray-600'" class="font-bold text-sm">●</span>
+              <span :class="panel.higher_low ? 'text-green-600 dark:text-green-400 font-semibold' : 'text-gray-400'">Higher Low</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <span :class="panel.lower_high ? 'text-red-500' : 'text-gray-300 dark:text-gray-600'" class="font-bold text-sm">●</span>
+              <span :class="panel.lower_high ? 'text-red-500 font-semibold' : 'text-gray-400'">Lower High</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <span :class="panel.lower_low ? 'text-red-500' : 'text-gray-300 dark:text-gray-600'" class="font-bold text-sm">●</span>
+              <span :class="panel.lower_low ? 'text-red-500 font-semibold' : 'text-gray-400'">Lower Low</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Entry Signal -->
+        <div
+          class="rounded-xl p-4 text-sm font-medium"
+          :class="panel.entry_signal ? 'bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 text-green-700 dark:text-green-300' : 'bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-400'"
+        >
+          <span x-show="panel.entry_signal">✓ Entry Signal Terpenuhi — semua kondisi teknikal terpenuhi</span>
+          <span x-show="!panel.entry_signal">✗ Entry Signal Belum Terpenuhi</span>
+        </div>
+
+        <!-- Broker Flow -->
+        <div>
+          <div class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Broker Flow (30 hari)</div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <div class="text-xs font-semibold text-green-600 dark:text-green-400 mb-2">Top Net Buying</div>
+              <div class="space-y-1.5">
+                <template x-for="b in (panel.broker?.top_net_buying ?? []).slice(0,5)" :key="b.broker_code">
+                  <div class="flex justify-between items-center text-xs py-1 border-b border-gray-100 dark:border-gray-800">
+                    <span class="font-semibold" x-text="b.broker_code"></span>
+                    <span class="text-green-600 dark:text-green-400 font-mono" x-text="fmtLot(b.net_lot)"></span>
+                  </div>
+                </template>
+                <template x-if="!(panel.broker?.top_net_buying?.length)">
+                  <div class="text-gray-400 text-xs">Tidak ada data</div>
+                </template>
+              </div>
+            </div>
+            <div>
+              <div class="text-xs font-semibold text-red-500 mb-2">Top Net Selling</div>
+              <div class="space-y-1.5">
+                <template x-for="b in (panel.broker?.top_net_selling ?? []).slice(0,5)" :key="b.broker_code">
+                  <div class="flex justify-between items-center text-xs py-1 border-b border-gray-100 dark:border-gray-800">
+                    <span class="font-semibold" x-text="b.broker_code"></span>
+                    <span class="text-red-500 font-mono" x-text="fmtLot(b.net_lot)"></span>
+                  </div>
+                </template>
+                <template x-if="!(panel.broker?.top_net_selling?.length)">
+                  <div class="text-gray-400 text-xs">Tidak ada data</div>
+                </template>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tombol Detail -->
+        <a
+          :href="'/stock/' + selectedTicker"
+          class="block w-full text-center py-3 rounded-xl bg-sky-500 hover:bg-sky-600 text-white font-semibold text-sm transition-colors"
+        >
+          Lihat Detail Lengkap →
+        </a>
+
+      </div>
+    </template>
   </div>
 
 </div>

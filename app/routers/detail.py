@@ -1,5 +1,6 @@
 from fastapi import APIRouter, HTTPException, Query
 from app.db import supabase
+from app.services.arjum_client import get_analysis, get_financial_statements
 
 router = APIRouter(prefix="/detail", tags=["detail"])
 
@@ -55,3 +56,21 @@ def get_ohlcv(ticker: str, limit: int = Query(default=200, le=500)):
         .execute()
     )
     return res.data
+
+
+@router.get("/{ticker}/analysis")
+def get_stock_analysis(ticker: str):
+    """Analisis lengkap dari Arjum API."""
+    try:
+        return get_analysis(ticker.upper())
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=str(e))
+
+
+@router.get("/{ticker}/financials")
+def get_stock_financials(ticker: str, period: str = Query(default="quarterly")):
+    """Laporan keuangan dari Arjum API."""
+    try:
+        return get_financial_statements(ticker.upper(), period=period)
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=str(e))

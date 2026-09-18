@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from app.routers import stocks, dashboard, update, detail, broker
+from app.routers import stocks, dashboard, update, detail, broker, pipeline
 
 app = FastAPI(
     title="Stock AI Analyst",
@@ -11,6 +11,7 @@ app.include_router(dashboard.router)
 app.include_router(update.router)
 app.include_router(detail.router)
 app.include_router(broker.router)
+app.include_router(pipeline.router)
 
 
 @app.get("/")

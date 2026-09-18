@@ -1,0 +1,17 @@
+name: Daily Pipeline
+
+on:
+  schedule:
+    - cron: "0 12 * * 1-5"  # 19:00 WIB, Senin-Jumat
+  workflow_dispatch:          # bisa trigger manual
+
+jobs:
+  run-pipeline:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Trigger daily update pipeline
+        run: |
+          curl -X POST "${{ secrets.RENDER_APP_URL }}/pipeline/run" \
+            -H "x-api-key: ${{ secrets.PIPELINE_SECRET }}" \
+            -f

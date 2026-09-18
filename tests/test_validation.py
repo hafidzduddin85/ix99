@@ -23,7 +23,7 @@ def validate_ohlcv(df: pd.DataFrame) -> list[str]:
 
 
 def check_duplicates(df: pd.DataFrame, key_cols: list[str]) -> bool:
-    return df.duplicated(subset=key_cols).any()
+    return bool(df.duplicated(subset=key_cols).any())
 
 
 class TestOHLCVValidation:
@@ -74,18 +74,18 @@ class TestDuplicateDetection:
             "stock_id": [1, 1, 1],
             "trade_date": ["2024-01-01", "2024-01-02", "2024-01-03"],
         })
-        assert check_duplicates(df, ["stock_id", "trade_date"]) is False
+        assert check_duplicates(df, ["stock_id", "trade_date"]) == False
 
     def test_duplicate_detected(self):
         df = pd.DataFrame({
             "stock_id": [1, 1, 1],
             "trade_date": ["2024-01-01", "2024-01-01", "2024-01-03"],
         })
-        assert check_duplicates(df, ["stock_id", "trade_date"]) is True
+        assert check_duplicates(df, ["stock_id", "trade_date"]) == True
 
     def test_duplicate_ticker(self):
         df = pd.DataFrame({"ticker": ["BBCA", "BBCA", "TLKM"]})
-        assert check_duplicates(df, ["ticker"]) is True
+        assert check_duplicates(df, ["ticker"]) == True
 
 
 class TestIndicatorDataLeakage:
@@ -99,8 +99,9 @@ class TestIndicatorDataLeakage:
 
     def test_rsi_no_lookahead(self):
         from app.indicators import calculate_rsi
-        import pandas as pd
-        close = pd.Series(range(1, 101), dtype=float)
+        import numpy as np
+        rng = np.random.default_rng(1)
+        close = pd.Series(1000 + np.cumsum(rng.normal(0, 10, 100)))
         rsi_full = calculate_rsi(close)
         rsi_partial = calculate_rsi(close.iloc[:60])
         assert abs(rsi_full.iloc[59] - rsi_partial.iloc[59]) < 1e-6

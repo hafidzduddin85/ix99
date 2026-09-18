@@ -54,17 +54,26 @@ function stockDetail(ticker) {
     },
 
     renderCharts(hist) {
+      // hist sudah di-reverse ke asc di fetchDetail
+      // Ambil EMA dari endpoint yang sama dengan hist (v_stock_analysis)
+      // tapi hist ini dari stock_daily — fetch indicator history terpisah
       const labels = hist.map(h => h.trade_date)
       const closes = hist.map(h => h.close)
+      const volumes = hist.map(h => h.volume)
 
       fetch(`/api/stocks/${this.ticker}/history?limit=90`)
         .then(r => r.json())
-        .then(ind => {
-          const indReversed = [...ind].reverse()
-          const ema20 = indReversed.map(i => i.ema20)
-          const ema50 = indReversed.map(i => i.ema50)
-          const ema200 = indReversed.map(i => i.ema200)
-          const volumes = hist.map(h => h.volume)
+        .then(raw => {
+          // raw dari v_stock_analysis, desc — reverse ke asc
+          const ind = [...raw].reverse()
+
+          // Align by trade_date: buat map dari ind
+          const indMap = {}
+          ind.forEach(i => { indMap[i.trade_date] = i })
+
+          const ema20  = labels.map(d => indMap[d]?.ema20  ?? null)
+          const ema50  = labels.map(d => indMap[d]?.ema50  ?? null)
+          const ema200 = labels.map(d => indMap[d]?.ema200 ?? null)
 
           const isDark = document.documentElement.classList.contains('dark')
           const gridColor = isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'
@@ -84,10 +93,10 @@ function stockDetail(ticker) {
             data: {
               labels,
               datasets: [
-                { label: 'Close', data: closes, borderColor: '#0ea5e9', borderWidth: 2, pointRadius: 0, tension: 0.3, fill: false },
-                { label: 'EMA20', data: ema20, borderColor: '#f59e0b', borderWidth: 1.5, pointRadius: 0, tension: 0.3 },
-                { label: 'EMA50', data: ema50, borderColor: '#8b5cf6', borderWidth: 1.5, pointRadius: 0, tension: 0.3 },
-                { label: 'EMA200', data: ema200, borderColor: '#ef4444', borderWidth: 1.5, pointRadius: 0, tension: 0.3 },
+                { label: 'Close',  data: closes, borderColor: '#0ea5e9', borderWidth: 2,   pointRadius: 0, tension: 0.3, fill: false },
+                { label: 'EMA20',  data: ema20,  borderColor: '#f59e0b', borderWidth: 1.5, pointRadius: 0, tension: 0.3, fill: false },
+                { label: 'EMA50',  data: ema50,  borderColor: '#8b5cf6', borderWidth: 1.5, pointRadius: 0, tension: 0.3, fill: false },
+                { label: 'EMA200', data: ema200, borderColor: '#ef4444', borderWidth: 1.5, pointRadius: 0, tension: 0.3, fill: false },
               ],
             },
             options: {

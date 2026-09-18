@@ -39,26 +39,6 @@
             <span x-show="loading">⏳ Running...</span>
           </button>
 
-          <!-- Fill Opening -->
-          <button
-            @click="runFillOpening()"
-            :disabled="loading"
-            class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-violet-500 hover:bg-violet-600 disabled:opacity-50 disabled:cursor-not-allowed text-white transition-colors"
-          >
-            <span x-show="!loading">📂 Fill Opening</span>
-            <span x-show="loading">⏳ Running...</span>
-          </button>
-
-          <!-- Fill Broker Daily -->
-          <button
-            @click="runFillBrokerDaily()"
-            :disabled="loading"
-            class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-amber-500 hover:bg-amber-600 disabled:opacity-50 disabled:cursor-not-allowed text-white transition-colors"
-          >
-            <span x-show="!loading">📊 Fill Broker Daily</span>
-            <span x-show="loading">⏳ Running...</span>
-          </button>
-
           <!-- Manage Stocks -->
           <button
             @click="$store.stockModal.open = true"
@@ -166,7 +146,7 @@
                 const data = await res.json()
                 if (res.ok) {
                   this.toastOk = true
-                  this.toast = `✓ Selesai — success: ${data.success ?? data.upserted ?? '?'}`
+                  this.toast = `✓ Selesai — ${data.success ?? 0}/${data.total ?? 0} saham (${data.duration_seconds ?? '?'}s)`
                 } else {
                   this.toastOk = false
                   this.toast = `✗ Error: ${data.detail ?? 'Unknown'}`
@@ -180,8 +160,6 @@
               }
             },
             runPipeline() { this._call('/api/pipeline/run') },
-            runFillOpening() { this._call('/api/pipeline/fill-opening') },
-            runFillBrokerDaily() { this._call('/api/pipeline/fill-broker-daily') },
           }
         }
 

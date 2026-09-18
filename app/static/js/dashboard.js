@@ -136,6 +136,16 @@ function dashboard() {
       return Number(v).toLocaleString('id-ID')
     },
 
+    fmtChange(close, prev) {
+      if (close == null || prev == null || prev === 0) return null
+      return { chg: close - prev, pct: ((close - prev) / prev) * 100 }
+    },
+
+    changeClass(close, prev) {
+      if (close == null || prev == null) return 'text-gray-400'
+      return close > prev ? 'text-green-500' : close < prev ? 'text-red-500' : 'text-gray-400'
+    },
+
     fmtDec(v, d = 2) {
       if (v == null) return '-'
       return Number(v).toFixed(d)
